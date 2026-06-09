@@ -1,0 +1,82 @@
+---
+title: ZéBolão 2026
+format: html
+---
+
+```{r}
+#| include: false
+
+library(dplyr)
+library(ggplot2)
+
+plans <- readxl::excel_sheets("planilha_mestra_26.xlsx")
+
+apostas <- setdiff(plans, c("APOSTAS", "RESULTADOS"))
+
+ponts <- lapply(
+  apostas,
+  function(plan) {
+    readxl::read_xlsx(
+      "planilha_mestra_26.xlsx",
+      sheet = plan,
+      range = readxl::cell_cols(c("H", "U")),
+      .name_repair = "unique_quiet"
+    ) |>
+      select(1, 14) |>
+      rename(data = DATA, pont = `...14`) |>
+      filter(!is.na(data) & data != "DIA") |>
+      mutate(data = as.Date(as.integer(data), origin = "1899-12-30"))
+  }
+)
+names(ponts) <- apostas
+```
+
+## Pontuação por dia
+
+```{r}
+#| echo: false
+
+acums <- lapply(
+  ponts,
+  function(pont) {
+    bind_rows(pont, tibble::tibble(data = as.Date("2026-06-10"), pont = 0)) |>
+      summarize(pont = sum(pont), .by = data) |>
+      arrange(data) |>
+      mutate(pontacum = cumsum(pont)) |>
+      filter(data <= as.Date("2026-06-12"))
+  }
+)
+acums <- bind_rows(acums, .id = "nome")
+
+p <- ggplot(acums) +
+  geom_line(aes(data, pontacum, color = nome)) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+plotly::ggplotly(p)
+```
+
+## Pontuação de ontem
+
+```{r}
+#| echo: false
+
+onts <- lapply(
+  ponts,
+  function(pont) {
+    summarize(pont, pont = sum(pont), .by = data) |>
+      filter(data == as.Date("2026-06-10"))
+  }
+)
+onts <- bind_rows(onts, .id = "nome")
+
+if (nrow(onts) == 0) {
+  cat("Não houve jogo ontem.")
+} else {
+  p <- ggplot(onts) +
+    geom_col(aes(nome, pont)) +
+    theme_minimal()
+
+  plotly::ggplotly(p)
+}
+```
