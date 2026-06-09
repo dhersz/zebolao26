@@ -6,6 +6,8 @@ format: html
 ```{r}
 #| include: false
 
+dia_atual <- 1
+
 library(dplyr)
 library(ggplot2)
 
@@ -22,10 +24,15 @@ ponts <- lapply(
       range = readxl::cell_cols(c("H", "U")),
       .name_repair = "unique_quiet"
     ) |>
-      select(1, 14) |>
-      rename(data = DATA, pont = `...14`) |>
+      select(1, 2, 14) |>
+      rename(data = DATA, hora = `...2`, pont = `...14`) |>
       filter(!is.na(data) & data != "DIA") |>
-      mutate(data = as.Date(as.integer(data), origin = "1899-12-30"))
+      mutate(
+        data = as.Date(as.integer(data), origin = "1899-12-30"),
+        hora = as.numeric(hora) * 24,
+        dia = as.integer(data - as.Date("2026-06-11") + 1)
+      ) |>
+      mutate(dia = ifelse(hora < 2, dia - 1L, dia))
   }
 )
 names(ponts) <- apostas
@@ -39,24 +46,27 @@ names(ponts) <- apostas
 acums <- lapply(
   ponts,
   function(pont) {
-    bind_rows(pont, tibble::tibble(data = as.Date("2026-06-10"), pont = 0)) |>
-      summarize(pont = sum(pont), .by = data) |>
-      arrange(data) |>
+    bind_rows(
+      pont,
+      tibble::tibble(data = as.Date("2026-06-10"), hora = 0, pont = 0, dia = 0)
+    ) |>
+      summarize(pont = sum(pont), .by = dia) |>
+      arrange(dia) |>
       mutate(pontacum = cumsum(pont)) |>
-      filter(data <= as.Date("2026-06-12"))
+      filter(dia <= dia_atual)
   }
 )
 acums <- bind_rows(acums, .id = "nome")
 
 p <- ggplot(acums) +
-  geom_line(aes(data, pontacum, color = nome)) +
+  geom_line(aes(dia, pontacum, color = nome)) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
 plotly::ggplotly(p)
 ```
 
-## Pontuação de ontem
+## Pontuação do dia `r dia_atual`
 
 ```{r}
 #| echo: false
@@ -64,8 +74,8 @@ plotly::ggplotly(p)
 onts <- lapply(
   ponts,
   function(pont) {
-    summarize(pont, pont = sum(pont), .by = data) |>
-      filter(data == as.Date("2026-06-10"))
+    summarize(pont, pont = sum(pont), .by = dia) |>
+      filter(dia == 1)
   }
 )
 onts <- bind_rows(onts, .id = "nome")
