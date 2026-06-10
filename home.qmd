@@ -8,7 +8,7 @@ Observação: madrugada conta como dia anterior!
 ```{r}
 #| include: false
 
-dia_atual <- 1
+dia_atual <- 2
 
 library(dplyr)
 library(ggplot2)
@@ -54,40 +54,29 @@ geral <- lapply(
 
 geral <- bind_rows(geral, .id = "nome") |>
   arrange(-pont)
-```
-
-:::: {.columns}
-
-::: {.column width = "20%"}
-
-```{r}
-#| echo: false
-
-knitr::kable(geral)
-```
-
-:::
-
-::: {.column width = "80%"}
-
-```{r}
-#| echo: false
 
 p <- ggplot(geral) +
   geom_col(
     aes(pont, forcats::fct_rev(factor(nome, levels = nome))),
     fill = "royalblue3"
   ) +
+  geom_text(
+    aes(
+      pont + max(pont) * 0.03,
+      forcats::fct_rev(factor(nome, levels = nome)),
+      label = pont
+    )
+  ) +
   theme_minimal() +
-  theme(axis.title.y = element_blank()) +
+  theme(
+    axis.title.y = element_blank(),
+    panel.grid = element_blank(),
+    axis.text.x = element_blank()
+  ) +
   labs(x = "Pontuação")
 
 plotly::ggplotly(p, tooltip = "pont")
 ```
-
-:::
-
-::::
 
 ## Pontuação por dia
 
@@ -124,34 +113,54 @@ p <- ggplot(acums) +
 plotly::ggplotly(p)
 ```
 
-## Pontuação do dia `r dia_atual`
-
 ```{r}
+#| results: asis
 #| echo: false
 
-onts <- lapply(
-  ponts,
-  function(pont) {
-    summarize(pont, pont = sum(pont), .by = dia) |>
-      filter(dia == 1)
+for (d in 1:dia_atual) {
+  cat(glue::glue("### Pontuação do dia {d}\n\n"))
+
+  pontdia <- lapply(
+    ponts,
+    function(pont) {
+      summarize(pont, pont = sum(pont), .by = dia) |>
+        filter(dia == d)
+    }
+  )
+
+  pontdia <- bind_rows(pontdia, .id = "nome") |>
+    arrange(-pont)
+
+  if (all(pontdia$pont == 0)) {
+    cat("Não houve jogos neste dia.\n\n")
+  } else {
+    cat("<details>\n\n<summary>Clique para expandir</summary>\n\n")
+
+    p <- ggplot(pontdia) +
+      geom_col(
+        aes(pont, forcats::fct_rev(factor(nome, levels = nome))),
+        fill = "darkgoldenrod1"
+      ) +
+      geom_text(
+        aes(
+          pont + max(pont) * 0.03,
+          forcats::fct_rev(factor(nome, levels = nome)),
+          label = pont
+        )
+      ) +
+      theme_minimal() +
+      theme(
+        axis.title.y = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_blank()
+      ) +
+      labs(x = "Pontuação")
+
+    py <- plotly::ggplotly(p, tooltip = "pont")
+
+    cat(knitr::knit_print(py), "\n\n")
+
+    cat("</details>\n\n")
   }
-)
-
-onts <- bind_rows(onts, .id = "nome") |>
-  arrange(-pont)
-
-if (nrow(onts) == 0) {
-  cat("Não houve jogo ontem.")
-} else {
-  p <- ggplot(onts) +
-    geom_col(
-      aes(pont, forcats::fct_rev(factor(nome, levels = nome))),
-      fill = "darkgoldenrod1"
-    ) +
-    theme_minimal() +
-    theme(axis.title.y = element_blank()) +
-    labs(x = "Pontuação")
-
-  plotly::ggplotly(p, tooltip = "pont")
 }
 ```
