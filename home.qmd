@@ -15,7 +15,7 @@ library(ggplot2)
 
 plans <- readxl::excel_sheets("planilha_mestra_26.xlsx")
 
-apostas <- setdiff(plans, c("APOSTAS", "RESULTADOS"))
+apostas <- setdiff(plans, c("APOSTAS", "RESULTADOS", "PAGAMENTO"))
 
 ponts <- lapply(
   apostas,
@@ -117,7 +117,7 @@ plotly::ggplotly(p)
 #| results: asis
 #| echo: false
 
-for (d in 1:dia_atual) {
+for (d in dia_atual:1) {
   cat(glue::glue("### Pontuação do dia {d}\n\n"))
 
   pontdia <- lapply(
