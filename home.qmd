@@ -3,6 +3,8 @@ title: ZéBolão 2026
 format: html
 ---
 
+Atualizado em `r strftime(Sys.time(), "%d/%m/%Y, %H:%M")`
+
 ```{r}
 #| include: false
 
