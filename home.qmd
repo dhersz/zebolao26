@@ -30,6 +30,7 @@ ponts <- lapply(
       rename(data = DATA, hora = `...2`, pont = `...14`) |>
       filter(!is.na(data) & data != "DIA") |>
       mutate(
+        pont = as.integer(pont),
         data = as.Date(as.integer(data), origin = "1899-12-30"),
         hora = as.numeric(hora) * 24,
         dia = as.integer(data - as.Date("2026-06-11") + 1)
