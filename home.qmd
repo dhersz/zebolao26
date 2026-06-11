@@ -3,8 +3,6 @@ title: ZéBolão 2026
 format: html
 ---
 
-Observação: madrugada conta como dia anterior!
-
 ```{r}
 #| include: false
 
@@ -80,6 +78,8 @@ plotly::ggplotly(p, tooltip = "pont")
 ```
 
 ## Pontuação por dia
+
+Observação: madrugada conta como dia anterior!
 
 ```{r}
 #| echo: false
