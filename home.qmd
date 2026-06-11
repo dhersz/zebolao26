@@ -8,7 +8,7 @@ Observação: madrugada conta como dia anterior!
 ```{r}
 #| include: false
 
-dia_atual <- 2
+dia_atual <- 1
 
 library(dplyr)
 library(ggplot2)
