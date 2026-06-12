@@ -3,7 +3,7 @@ title: ZéBolão 2026
 format: html
 ---
 
-Atualizado em `r strftime(lubridate::with_tz(Sys.time(), tzone = "America/Sao_Paulo"), "%d/%m/%Y, %H:%M")`
+Atualizado em `r strftime(Sys.time(), "%d/%m/%Y, %H:%M", tz = "America/Sao_Paulo")`
 
 ```{r}
 #| include: false
