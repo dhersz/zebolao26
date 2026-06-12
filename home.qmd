@@ -8,10 +8,32 @@ Atualizado em `r strftime(Sys.time(), "%d/%m/%Y, %H:%M", tz = "America/Sao_Paulo
 ```{r}
 #| include: false
 
-dia_atual <- 1
-
 library(dplyr)
 library(ggplot2)
+
+# calculando dia atual
+
+res <- readxl::read_xlsx(
+  "planilha_mestra_26.xlsx",
+  sheet = "RESULTADOS",
+  range = readxl::cell_cols(c("B", "I")),
+  .name_repair = "unique_quiet"
+) |>
+  select(2, 4, 7, 8) |>
+  rename(gp = `...2`, gc = `...4`, data = DATA, hora = `...8`) |>
+  filter(!is.na(gp)) |>
+  mutate(
+    data = as.Date(as.integer(data), origin = "1899-12-30"),
+    hora = as.numeric(hora) * 24,
+    dia = as.integer(data - as.Date("2026-06-11") + 1)
+  ) |>
+  mutate(dia = ifelse(hora < 2, dia - 1L, dia))
+
+dia_atual <- max(res$dia)
+```
+
+```{r}
+#| include: false
 
 plans <- readxl::excel_sheets("planilha_mestra_26.xlsx")
 
