@@ -1,0 +1,193 @@
+---
+title: ZéBolão 2026 - Mata-mata
+format: html
+---
+
+Atualizado em `r strftime(Sys.time(), "%d/%m/%Y, %H:%M", tz = "America/Sao_Paulo")`
+
+```{r}
+#| include: false
+
+library(dplyr)
+library(ggplot2)
+
+# calculando dia atual
+
+res <- readxl::read_xlsx(
+  "mestra_matamata_26.xlsx",
+  sheet = "RESULTADOS",
+  range = readxl::cell_cols(c("B", "I")),
+  .name_repair = "unique_quiet"
+) |>
+  select(2, 4, 7, 8) |>
+  rename(gp = `...2`, gc = `...4`, data = DATA, hora = `...8`) |>
+  filter(!is.na(data) & !is.na(gp)) |>
+  mutate(
+    data = as.Date(as.integer(data), origin = "1899-12-30"),
+    hora = as.numeric(hora) * 24,
+    dia = as.integer(data - as.Date("2026-06-28") + 1)
+  ) |>
+  mutate(dia = ifelse(hora < 2, dia - 1L, dia))
+
+dia_atual <- max(res$dia)
+```
+
+```{r}
+#| include: false
+
+plans <- readxl::excel_sheets("mestra_matamata_26.xlsx")
+
+apostas <- setdiff(plans, c("APOSTAS", "RESULTADOS", "PAGAMENTO"))
+
+ponts <- lapply(
+  apostas,
+  function(plan) {
+    readxl::read_xlsx(
+      "mestra_matamata_26.xlsx",
+      sheet = plan,
+      range = readxl::cell_cols(c("H", "K")),
+      .name_repair = "unique_quiet"
+    ) |>
+      select(1, 2, 4) |>
+      rename(data = DATA, hora = `...2`, pont = PONTUAÇÃO) |>
+      filter(!is.na(data) & data != "DIA") |>
+      mutate(
+        pont = as.integer(pont),
+        data = as.Date(as.integer(data), origin = "1899-12-30"),
+        hora = as.numeric(hora) * 24,
+        dia = as.integer(data - as.Date("2026-06-28") + 1)
+      ) |>
+      mutate(dia = ifelse(hora < 2, dia - 1L, dia))
+  }
+)
+names(ponts) <- apostas
+```
+
+## Pontuação geral
+
+```{r}
+#| echo: false
+
+geral <- lapply(
+  ponts,
+  function(pont) {
+    summarize(pont, pont = sum(pont))
+  }
+)
+
+geral <- bind_rows(geral, .id = "nome") |>
+  arrange(-pont)
+
+p <- ggplot(geral) +
+  geom_col(
+    aes(pont, forcats::fct_rev(factor(nome, levels = nome))),
+    fill = "royalblue3"
+  ) +
+  geom_text(
+    aes(
+      pont + max(pont) * 0.03,
+      forcats::fct_rev(factor(nome, levels = nome)),
+      label = pont
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(),
+    panel.grid = element_blank(),
+    axis.text.x = element_blank()
+  ) +
+  labs(x = "Pontuação")
+
+plotly::ggplotly(p, tooltip = "pont")
+```
+
+## Pontuação por dia
+
+Observação: madrugada conta como dia anterior!
+
+```{r}
+#| echo: false
+
+acums <- lapply(
+  ponts,
+  function(pont) {
+    bind_rows(
+      pont,
+      tibble::tibble(data = as.Date("2026-06-27"), hora = 0, pont = 0, dia = 0)
+    ) |>
+      summarize(pont = sum(pont), .by = dia) |>
+      arrange(dia) |>
+      mutate(pontacum = cumsum(pont)) |>
+      filter(dia <= dia_atual)
+  }
+)
+acums <- bind_rows(acums, .id = "nome")
+
+p <- ggplot(acums) +
+  geom_line(aes(dia, pontacum, color = nome)) +
+  scale_x_continuous(
+    breaks = function(x) {
+      unique(floor(pretty(seq(min(x), (max(x) + 1) * 1.1))))
+    }
+  ) +
+  scale_color_discrete(name = "") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(x = "Dia", y = "Pontuação")
+
+plotly::ggplotly(p)
+```
+
+```{r}
+#| results: asis
+#| echo: false
+
+dias_com_jogo <- sort(unique(res$dia), decreasing = TRUE)
+
+for (d in dias_com_jogo) {
+  cat(glue::glue("### Pontuação do dia {d}\n\n"))
+
+  pontdia <- lapply(
+    ponts,
+    function(pont) {
+      summarize(pont, pont = sum(pont), .by = dia) |>
+        filter(dia == d)
+    }
+  )
+
+  pontdia <- bind_rows(pontdia, .id = "nome") |>
+    arrange(-pont)
+
+  if (all(pontdia$pont == 0)) {
+    cat("Ninguém pontuou.\n\n")
+  } else {
+    cat("<details>\n\n<summary>Clique para expandir</summary>\n\n")
+
+    p <- ggplot(pontdia) +
+      geom_col(
+        aes(pont, forcats::fct_rev(factor(nome, levels = nome))),
+        fill = "darkgoldenrod1"
+      ) +
+      geom_text(
+        aes(
+          pont + max(pont) * 0.03,
+          forcats::fct_rev(factor(nome, levels = nome)),
+          label = pont
+        )
+      ) +
+      theme_minimal() +
+      theme(
+        axis.title.y = element_blank(),
+        panel.grid = element_blank(),
+        axis.text.x = element_blank()
+      ) +
+      labs(x = "Pontuação")
+
+    py <- plotly::ggplotly(p, tooltip = "pont")
+
+    cat(knitr::knit_print(py), "\n\n")
+
+    cat("</details>\n\n")
+  }
+}
+```
